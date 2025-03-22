@@ -1,0 +1,26 @@
+{
+  "songs": [
+    {
+      "id": "1742660049200",
+      "title": "1",
+      "artist": "Velli",
+      "audioUrl": "/uploads/songs/1742660049175-16.mp3",
+      "coverArt": "/uploads/covers/1742660049175-New logo.jpg",
+      "instagram": "@602bangerz",
+      "twitter": null,
+      "status": "active",
+      "createdAt": "2025-03-22T16:14:09.200Z"
+    },
+    {
+      "id": "1742663827539",
+      "title": "2",
+      "artist": "Velli",
+      "audioUrl": "/uploads/songs/1742663827532-48.mp3",
+      "coverArt": "/uploads/covers/1742663827532-phx02 purple gravel.jpg",
+      "instagram": "@602bangerz",
+      "twitter": null,
+      "status": "active",
+      "createdAt": "2025-03-22T17:17:07.539Z"
+    }
+  ]
+}
