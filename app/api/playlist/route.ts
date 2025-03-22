@@ -2,21 +2,43 @@ import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
 
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  audioUrl: string;
+  coverArt: string;
+  instagram?: string;
+  twitter?: string;
+  status: 'pending' | 'active';
+  createdAt: string;
+}
+
+interface PlaylistData {
+  songIds: string[];
+}
+
+interface SongsData {
+  songs: Song[];
+}
+
 export async function GET() {
   try {
     // Read the playlist from the data file
     const playlistPath = path.join(process.cwd(), 'data', 'playlist.json');
     const songsPath = path.join(process.cwd(), 'data', 'songs.json');
 
-    let playlist = [];
-    let songs = [];
+    let playlist: string[] = [];
+    let songs: Song[] = [];
 
     try {
       const playlistData = await readFile(playlistPath, 'utf-8');
-      playlist = JSON.parse(playlistData).songIds || [];
+      const parsedPlaylist = JSON.parse(playlistData) as PlaylistData;
+      playlist = parsedPlaylist.songIds || [];
       
       const songsData = await readFile(songsPath, 'utf-8');
-      songs = JSON.parse(songsData).songs || [];
+      const parsedSongs = JSON.parse(songsData) as SongsData;
+      songs = parsedSongs.songs || [];
     } catch (error) {
       // If the file doesn't exist, return an empty playlist
       return NextResponse.json({ playlist: [] });
@@ -24,8 +46,8 @@ export async function GET() {
 
     // Map the song IDs to full song objects
     const playlistWithSongs = playlist
-      .map(songId => songs.find(song => song.id === songId))
-      .filter(Boolean); // Remove any null entries if songs weren't found
+      .map((songId: string) => songs.find((song: Song): boolean => song.id === songId))
+      .filter((song): song is Song => song !== undefined);
 
     return NextResponse.json({ playlist: playlistWithSongs });
   } catch (error) {
