@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
 import path from 'path';
+
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  audioUrl: string;
+  coverArt: string;
+  instagram?: string;
+  twitter?: string;
+  status: 'pending' | 'active';
+  createdAt: string;
+}
+
+interface SongsData {
+  songs: Song[];
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,8 +26,8 @@ export async function POST(request: Request) {
     const coverArt = formData.get('coverArt') as File;
     const artistName = formData.get('artistName') as string;
     const trackTitle = formData.get('trackTitle') as string;
-    const instagram = formData.get('instagram') as string;
-    const twitter = formData.get('twitter') as string;
+    const instagram = formData.get('instagram') as string | null;
+    const twitter = formData.get('twitter') as string | null;
 
     if (!audioFile || !coverArt || !artistName || !trackTitle) {
       return NextResponse.json(
@@ -35,33 +51,34 @@ export async function POST(request: Request) {
     await writeFile(coverPath, coverBuffer);
 
     // Save metadata to songs.json
-    const songData = {
+    const songData: Song = {
       id: Date.now().toString(),
       title: trackTitle,
       artist: artistName,
       audioUrl: `/uploads/songs/${audioFileName}`,
       coverArt: `/uploads/covers/${coverFileName}`,
-      instagram: instagram || null,
-      twitter: twitter || null,
+      instagram: instagram || undefined,
+      twitter: twitter || undefined,
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
     // Read existing songs
-    let songs = [];
+    let songs: Song[] = [];
     const songsPath = path.join(process.cwd(), 'data/songs.json');
     
     try {
-      const songsFile = await import('../../../data/songs.json');
-      songs = songsFile.default;
+      const songsData = await readFile(songsPath, 'utf-8');
+      const parsedData = JSON.parse(songsData) as SongsData;
+      songs = parsedData.songs || [];
     } catch (error) {
       // File doesn't exist yet, that's ok
-      await writeFile(songsPath, '[]');
+      await writeFile(songsPath, JSON.stringify({ songs: [] }));
     }
 
     // Add new song and save
     songs.push(songData);
-    await writeFile(songsPath, JSON.stringify(songs, null, 2));
+    await writeFile(songsPath, JSON.stringify({ songs }, null, 2));
 
     return NextResponse.json({ success: true, song: songData });
   } catch (error) {
