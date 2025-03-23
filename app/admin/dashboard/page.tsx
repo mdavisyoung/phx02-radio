@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                       )}
                       <button
                         onClick={() => deleteSong(song)}
-                        className="p-2 text-red-500 hover:text-red-400 transition-colors ml-2"
+                        className="p-2 text-red-500 hover:text-red-400 transition-colors"
                         title="Delete Song"
                       >
                         <FaTimes />
