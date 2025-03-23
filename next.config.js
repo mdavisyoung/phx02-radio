@@ -1,15 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-    responseLimit: '10mb',
+  experimental: {
+    serverComponentsExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner']
   },
   webpack: (config) => {
     config.externals = [...(config.externals || []), { 'utf-8-validate': 'commonjs utf-8-validate' }];
     return config;
-  },
+  }
 }
 
 module.exports = nextConfig 
