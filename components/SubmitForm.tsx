@@ -47,13 +47,14 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       if (instagram) formData.append('instagram', instagram);
       if (twitter) formData.append('twitter', twitter);
 
-      const response = await fetch('/api/songs/submit', {
+      const response = await fetch('/api/submit', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit song');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit song');
       }
 
       const newSong = await response.json();
