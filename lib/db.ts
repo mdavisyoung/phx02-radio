@@ -38,33 +38,51 @@ export const db = {
     instagram?: string,
     twitter?: string
   ): Promise<Song> => {
-    // Generate unique filenames
-    const timestamp = Date.now();
-    const audioFileName = `${timestamp}-${audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-    const coverFileName = `${timestamp}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-    
-    // Convert files to buffers
-    const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-    const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
-    
-    // Upload files to S3
-    const audioUrl = await uploadToS3(audioBuffer, `songs/${audioFileName}`, audioFile.type);
-    const coverUrl = await uploadToS3(coverBuffer, `covers/${coverFileName}`, coverFile.type);
+    try {
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const audioFileName = `${timestamp}-${audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+      const coverFileName = `${timestamp}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+      
+      console.log('Processing files:', {
+        audioFileName,
+        coverFileName,
+        audioType: audioFile.type,
+        coverType: coverFile.type
+      });
 
-    const newSong: Song = {
-      id: crypto.randomUUID(),
-      title,
-      artist,
-      audioUrl,
-      coverArt: coverUrl,
-      instagram,
-      twitter,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+      // Convert files to buffers
+      const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+      const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
+      
+      console.log('Uploading to S3...');
 
-    songs.push(newSong);
-    return newSong;
+      // Upload files to S3
+      const audioUrl = await uploadToS3(audioBuffer, `songs/${audioFileName}`, audioFile.type);
+      console.log('Audio uploaded:', audioUrl);
+      
+      const coverUrl = await uploadToS3(coverBuffer, `covers/${coverFileName}`, coverFile.type);
+      console.log('Cover uploaded:', coverUrl);
+
+      const newSong: Song = {
+        id: crypto.randomUUID(),
+        title,
+        artist,
+        audioUrl,
+        coverArt: coverUrl,
+        instagram,
+        twitter,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+
+      console.log('Created new song:', newSong);
+      songs.push(newSong);
+      return newSong;
+    } catch (error) {
+      console.error('Error in addSong:', error);
+      throw error;
+    }
   },
 
   // Clear all songs
@@ -74,17 +92,30 @@ export const db = {
 
   // Delete a song
   deleteSong: async (songId: string): Promise<void> => {
-    const song = songs.find(s => s.id === songId);
-    if (!song) return;
+    try {
+      const song = songs.find(s => s.id === songId);
+      if (!song) {
+        console.log('Song not found:', songId);
+        return;
+      }
 
-    // Delete files from S3
-    const audioKey = song.audioUrl.split('/').pop();
-    const coverKey = song.coverArt.split('/').pop();
-    if (audioKey) await deleteFromS3(`songs/${audioKey}`);
-    if (coverKey) await deleteFromS3(`covers/${coverKey}`);
+      console.log('Deleting song:', song);
 
-    // Remove from songs array
-    songs = songs.filter(s => s.id !== songId);
+      // Extract file keys from URLs
+      const audioKey = song.audioUrl.split('/').slice(-2).join('/'); // "songs/filename"
+      const coverKey = song.coverArt.split('/').slice(-2).join('/'); // "covers/filename"
+
+      // Delete files from S3
+      await deleteFromS3(audioKey);
+      await deleteFromS3(coverKey);
+
+      // Remove from songs array
+      songs = songs.filter(s => s.id !== songId);
+      console.log('Song deleted successfully');
+    } catch (error) {
+      console.error('Error in deleteSong:', error);
+      throw error;
+    }
   },
 
   // Update song status
