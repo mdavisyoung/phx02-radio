@@ -1,23 +1,5 @@
 import { uploadToS3 } from './s3';
 
-// Ensure our storage directories exist
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
-const SONGS_DIR = path.join(UPLOAD_DIR, 'songs');
-const COVERS_DIR = path.join(UPLOAD_DIR, 'covers');
-const DB_FILE = path.join(process.cwd(), 'data', 'songs.json');
-
-// Create directories if they don't exist
-[UPLOAD_DIR, SONGS_DIR, COVERS_DIR, path.dirname(DB_FILE)].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
-
-// Initialize empty database if it doesn't exist
-if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify({ songs: [] }));
-}
-
 interface Song {
   id: string;
   title: string;
