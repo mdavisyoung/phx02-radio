@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+// Remove the old config export and use the new format
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
