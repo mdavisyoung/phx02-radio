@@ -82,8 +82,12 @@ export default function Home() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-12">
             <div>
-              <h1 className="text-5xl font-bold text-white mb-2">PHX02 Radio</h1>
-              <p className="text-xl text-gray-400">Underground Hip Hop</p>
+              <img
+                src="/phx02 main logo.jpg"
+                alt="PHX02 Radio"
+                className="h-16 w-auto"
+              />
+              <p className="text-xl text-gray-400 mt-2">Underground Hip Hop</p>
             </div>
             <div className="flex items-center space-x-6">
               <Link
