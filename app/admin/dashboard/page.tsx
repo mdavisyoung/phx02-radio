@@ -124,6 +124,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const deleteSong = async (song: Song) => {
+    if (!confirm('Are you sure you want to delete this song? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/songs/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ songId: song.id }),
+      });
+
+      if (response.ok) {
+        setSongs(songs.filter(s => s.id !== song.id));
+        setPlaylist(playlist.filter(s => s.id !== song.id));
+        if (currentSong?.id === song.id) {
+          setCurrentSong(null);
+        }
+        alert('Song deleted successfully!');
+      }
+    } catch (error) {
+      console.error('Error deleting song:', error);
+      alert('Error deleting song');
+    }
+  };
+
   const addToPlaylist = async (song: Song) => {
     if (song.status !== 'active') {
       alert('Please approve the song before adding it to the playlist.');
@@ -222,51 +250,57 @@ export default function AdminDashboard() {
                       alt={`${song.title} cover`}
                       className="w-16 h-16 object-cover"
                     />
-                    <div className="flex-1 p-4">
-                      <h3 className="font-bold">{song.title}</h3>
+                    <div className="flex-1 px-4">
+                      <h3 className="font-semibold text-white">{song.title}</h3>
                       <p className="text-gray-400">{song.artist}</p>
-                      <p className="text-sm text-gray-500">
-                        Status: {song.status === 'pending' ? 'Pending Approval' : 'Approved'}
-                      </p>
                     </div>
-                    <div className="flex space-x-2 p-4">
+                    <div className="flex items-center space-x-2 px-4">
                       {song.status === 'pending' ? (
                         <>
                           <button
                             onClick={() => approveSong(song)}
-                            className="p-2 rounded bg-green-600 text-white hover:bg-green-700"
+                            className="p-2 text-green-500 hover:text-green-400 transition-colors"
                             title="Approve"
                           >
-                            <FaCheck size={16} />
+                            <FaCheck />
                           </button>
                           <button
                             onClick={() => rejectSong(song)}
-                            className="p-2 rounded bg-red-600 text-white hover:bg-red-700"
+                            className="p-2 text-red-500 hover:text-red-400 transition-colors"
                             title="Reject"
                           >
-                            <FaTimes size={16} />
+                            <FaTimes />
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => setActiveTrack(song)}
-                            className={`p-2 rounded ${
+                            className={`p-2 ${
                               currentSong?.id === song.id
-                                ? 'bg-green-600 text-white'
-                                : 'bg-white/10 text-white'
-                            }`}
+                                ? 'text-green-500'
+                                : 'text-white hover:text-green-500'
+                            } transition-colors`}
+                            title={currentSong?.id === song.id ? 'Now Playing' : 'Set as Active'}
                           >
-                            {currentSong?.id === song.id ? <FaPause size={16} /> : <FaPlay size={16} />}
+                            {currentSong?.id === song.id ? <FaPause /> : <FaPlay />}
                           </button>
                           <button
                             onClick={() => addToPlaylist(song)}
-                            className="p-2 rounded bg-white/10 text-white hover:bg-white/20"
+                            className="p-2 text-blue-500 hover:text-blue-400 transition-colors"
+                            title="Add to Playlist"
                           >
-                            Add to Playlist
+                            ➕
                           </button>
                         </>
                       )}
+                      <button
+                        onClick={() => deleteSong(song)}
+                        className="p-2 text-red-500 hover:text-red-400 transition-colors"
+                        title="Delete"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                 ))}

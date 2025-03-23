@@ -1,4 +1,4 @@
-import { uploadToS3 } from './s3';
+import { uploadToS3, deleteFromS3 } from './s3';
 
 interface Song {
   id: string;
@@ -70,6 +70,21 @@ export const db = {
   // Clear all songs
   clearSongs: (): void => {
     songs = [];
+  },
+
+  // Delete a song
+  deleteSong: async (songId: string): Promise<void> => {
+    const song = songs.find(s => s.id === songId);
+    if (!song) return;
+
+    // Delete files from S3
+    const audioKey = song.audioUrl.split('/').pop();
+    const coverKey = song.coverArt.split('/').pop();
+    if (audioKey) await deleteFromS3(`songs/${audioKey}`);
+    if (coverKey) await deleteFromS3(`covers/${coverKey}`);
+
+    // Remove from songs array
+    songs = songs.filter(s => s.id !== songId);
   },
 
   // Update song status
