@@ -67,6 +67,11 @@ export const db = {
     return newSong;
   },
 
+  // Clear all songs
+  clearSongs: (): void => {
+    songs = [];
+  },
+
   // Update song status
   updateSongStatus: (songId: string, status: 'pending' | 'active'): void => {
     songs = songs.map((song: Song) =>
