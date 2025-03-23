@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { db } from '@/lib/db';
 
 interface Song {
   id: string;
@@ -21,6 +22,9 @@ interface PlaylistData {
 interface SongsData {
   songs: Song[];
 }
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {

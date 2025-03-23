@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import { db } from '@/lib/db';
 
 interface Song {
   id: string;
@@ -13,6 +14,9 @@ interface Song {
   status: 'pending' | 'active';
   createdAt: string;
 }
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {

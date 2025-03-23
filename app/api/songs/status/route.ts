@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function PUT(request: Request) {
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: Request) {
   try {
     const { songId, status } = await request.json();
     db.updateSongStatus(songId, status);
