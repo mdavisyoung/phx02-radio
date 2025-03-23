@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { uploadToS3 } from './s3';
 
 // Ensure our storage directories exist
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
@@ -31,11 +30,13 @@ interface Song {
   createdAt: string;
 }
 
+// In-memory storage for development
+let songs: Song[] = [];
+
 export const db = {
   // Get all songs with a specific status
   getSongs: (status: 'pending' | 'active'): Song[] => {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-    return data.songs
+    return songs
       .filter((song: Song) => song.status === status)
       .sort((a: Song, b: Song) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
@@ -55,42 +56,39 @@ export const db = {
     instagram?: string,
     twitter?: string
   ): Promise<Song> => {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-    
     // Generate unique filenames
-    const audioFileName = `${Date.now()}-${audioFile.name}`;
-    const coverFileName = `${Date.now()}-${coverFile.name}`;
+    const timestamp = Date.now();
+    const audioFileName = `${timestamp}-${audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+    const coverFileName = `${timestamp}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
     
-    // Save files
+    // Convert files to buffers
     const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
     const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
     
-    fs.writeFileSync(path.join(SONGS_DIR, audioFileName), audioBuffer);
-    fs.writeFileSync(path.join(COVERS_DIR, coverFileName), coverBuffer);
+    // Upload files to S3
+    const audioUrl = await uploadToS3(audioBuffer, `songs/${audioFileName}`, audioFile.type);
+    const coverUrl = await uploadToS3(coverBuffer, `covers/${coverFileName}`, coverFile.type);
 
     const newSong: Song = {
       id: crypto.randomUUID(),
       title,
       artist,
-      audioUrl: `/uploads/songs/${audioFileName}`,
-      coverArt: `/uploads/covers/${coverFileName}`,
+      audioUrl,
+      coverArt: coverUrl,
       instagram,
       twitter,
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
-    data.songs.push(newSong);
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    songs.push(newSong);
     return newSong;
   },
 
   // Update song status
   updateSongStatus: (songId: string, status: 'pending' | 'active'): void => {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-    data.songs = data.songs.map((song: Song) =>
+    songs = songs.map((song: Song) =>
       song.id === songId ? { ...song, status } : song
     );
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
   },
 }; 
