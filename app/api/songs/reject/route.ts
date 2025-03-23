@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
-import { readFile, writeFile, unlink } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import { deleteFromS3 } from '@/lib/s3';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 interface Song {
   id: string;
@@ -48,25 +52,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Delete the files
+    // Extract S3 keys from URLs
+    const audioKey = song.audioUrl.split('.com/').pop() || '';
+    const coverKey = song.coverArt.split('.com/').pop() || '';
+
+    // Delete files from S3
     try {
-      const audioPath = path.join(process.cwd(), 'public', song.audioUrl);
-      const coverPath = path.join(process.cwd(), 'public', song.coverArt);
-      
-      await unlink(audioPath);
-      await unlink(coverPath);
+      await Promise.all([
+        deleteFromS3(audioKey),
+        deleteFromS3(coverKey)
+      ]);
     } catch (error) {
-      console.error('Error deleting files:', error);
-      // Continue even if file deletion fails
+      console.error('Error deleting files from S3:', error);
+      // Continue with song removal even if S3 deletion fails
     }
 
-    // Remove from songs list
-    const updatedSongs = songs.filter(s => s.id !== songId);
+    // Remove song from array
+    songs = songs.filter(s => s.id !== songId);
 
     // Save updated songs
     await writeFile(
       songsPath,
-      JSON.stringify({ songs: updatedSongs }, null, 2)
+      JSON.stringify({ songs }, null, 2)
     );
 
     // Remove from playlist if present
