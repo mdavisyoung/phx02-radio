@@ -3,6 +3,11 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { db } from '@/lib/db';
 
+// Route Segment Config
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
 interface Song {
   id: string;
   title: string;
@@ -24,7 +29,6 @@ interface SongsData {
 }
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET() {

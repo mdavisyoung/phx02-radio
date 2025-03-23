@@ -3,9 +3,10 @@ import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { db } from '@/lib/db';
 
-export const runtime = 'nodejs';
+// Route Segment Config
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
 
 interface Song {
   id: string;
