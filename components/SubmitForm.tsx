@@ -32,16 +32,30 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadToS3 = async (url: string, file: File) => {
-    const response = await fetch(url, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type,
-      },
-    });
+    console.log('Starting S3 upload:', { url, fileName: file.name, fileType: file.type });
+    
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to upload file: ${response.statusText}`);
+      if (!response.ok) {
+        console.error('S3 upload failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: await response.text()
+        });
+        throw new Error(`Failed to upload file: ${response.statusText}`);
+      }
+
+      console.log('S3 upload successful:', { fileName: file.name });
+    } catch (error) {
+      console.error('S3 upload error:', error);
+      throw error;
     }
   };
 
@@ -57,6 +71,11 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
         throw new Error('Please fill in all required fields');
       }
 
+      console.log('Files selected:', {
+        audioFile: { name: audioFile.name, type: audioFile.type, size: audioFile.size },
+        coverArt: { name: coverArt.name, type: coverArt.type, size: coverArt.size }
+      });
+
       // Check file sizes
       if (audioFile.size > 50 * 1024 * 1024) {
         throw new Error('Audio file must be smaller than 50MB');
@@ -67,6 +86,7 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       }
 
       // Get signed URLs for uploads
+      console.log('Requesting upload URLs...');
       const urlResponse = await fetch('/api/get-upload-urls', {
         method: 'POST',
         headers: {
@@ -79,10 +99,17 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       });
 
       if (!urlResponse.ok) {
+        const errorText = await urlResponse.text();
+        console.error('Failed to get upload URLs:', {
+          status: urlResponse.status,
+          statusText: urlResponse.statusText,
+          error: errorText
+        });
         throw new Error('Failed to get upload URLs');
       }
 
       const { urls } = await urlResponse.json();
+      console.log('Received upload URLs:', urls);
       const [audioUrls, coverUrls] = urls;
 
       // Upload files to S3
@@ -93,6 +120,7 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       setUploadProgress(80);
 
       // Submit metadata to our API
+      console.log('Submitting metadata...');
       const submitResponse = await fetch('/api/submit', {
         method: 'POST',
         headers: {
@@ -109,6 +137,12 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       });
 
       if (!submitResponse.ok) {
+        const errorText = await submitResponse.text();
+        console.error('Failed to submit metadata:', {
+          status: submitResponse.status,
+          statusText: submitResponse.statusText,
+          error: errorText
+        });
         throw new Error('Failed to submit song metadata');
       }
 
@@ -130,6 +164,7 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
     } catch (err) {
       console.error('Submission error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setUploadProgress(0);
     } finally {
       setIsSubmitting(false);
     }

@@ -16,6 +16,7 @@ const BUCKET_NAME = process.env.AWS_BUCKET_NAME || '';
 export async function POST(request: Request) {
   try {
     const { title, fileTypes } = await request.json();
+    console.log('Received request for upload URLs:', { title, fileTypes });
 
     if (!title || !fileTypes || !Array.isArray(fileTypes)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -23,11 +24,14 @@ export async function POST(request: Request) {
 
     const urls = await Promise.all(
       fileTypes.map(async (type) => {
-        const isSong = type === 'audio/mp3';
+        // More flexible audio type checking
+        const isSong = type.includes('audio/') || type.includes('audio');
         const ext = isSong ? '.mp3' : '.jpg';
         const prefix = isSong ? 'songs/' : 'covers/';
         const fileName = createSafeFileName(title, ext);
         const key = prefix + fileName;
+
+        console.log('Generating signed URL for:', { type, key });
 
         const command = new PutObjectCommand({
           Bucket: BUCKET_NAME,
@@ -38,6 +42,8 @@ export async function POST(request: Request) {
 
         const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
         const publicUrl = `https://${BUCKET_NAME}.s3.us-east-2.amazonaws.com/${key}`;
+
+        console.log('Generated URLs:', { signedUrl, publicUrl });
 
         return {
           signedUrl,
