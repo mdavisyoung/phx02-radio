@@ -71,9 +71,13 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
         throw new Error('Please fill in all required fields');
       }
 
+      // Ensure we have the correct file types
+      const audioType = audioFile.type || 'audio/mp3';
+      const imageType = coverArt.type || 'image/jpeg';
+
       console.log('Files selected:', {
-        audioFile: { name: audioFile.name, type: audioFile.type, size: audioFile.size },
-        coverArt: { name: coverArt.name, type: coverArt.type, size: coverArt.size }
+        audioFile: { name: audioFile.name, type: audioType, size: audioFile.size },
+        coverArt: { name: coverArt.name, type: imageType, size: coverArt.size }
       });
 
       // Check file sizes
@@ -94,7 +98,7 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
         },
         body: JSON.stringify({
           title,
-          fileTypes: [audioFile.type, coverArt.type],
+          fileTypes: [audioType, imageType],
         }),
       });
 
@@ -110,12 +114,19 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
 
       const { urls } = await urlResponse.json();
       console.log('Received upload URLs:', urls);
+      
+      if (!urls || !Array.isArray(urls) || urls.length !== 2) {
+        throw new Error('Invalid response from server - missing upload URLs');
+      }
+
       const [audioUrls, coverUrls] = urls;
 
       // Upload files to S3
       setUploadProgress(10);
+      console.log('Uploading audio file...');
       await uploadToS3(audioUrls.signedUrl, audioFile);
       setUploadProgress(50);
+      console.log('Uploading cover art...');
       await uploadToS3(coverUrls.signedUrl, coverArt);
       setUploadProgress(80);
 
