@@ -12,7 +12,7 @@ export interface SongMetadata {
   /** Full path to the song file in S3 */
   songKey: string;
   /** Full path to the cover art image in S3 */
-  imageKey: string;
+  imageKey?: string;
   /** Whether the song has been approved by admin */
   approved: boolean;
   /** ISO timestamp of when the song was submitted */
@@ -27,7 +27,7 @@ export interface Song {
   /** S3 key for the song file */
   key: string;
   /** Metadata associated with the song */
-  metadata: SongMetadata | null;
+  metadata: SongMetadata;
 }
 
 /**

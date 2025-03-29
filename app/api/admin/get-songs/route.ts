@@ -4,11 +4,12 @@ import { s3Client, BUCKET_NAME } from '@/app/lib/aws-config';
 import { getMetadata, addSongMetadata } from '@/app/lib/metadata';
 
 export async function GET() {
-  try {
-    if (!s3Client) {
-      throw new Error('S3 client is not initialized');
-    }
+  if (!s3Client) {
+    console.error('S3 client is not initialized');
+    return NextResponse.json({ error: 'S3 client is not initialized' }, { status: 500 });
+  }
 
+  try {
     console.log('Getting songs and metadata...');
     let metadata = await getMetadata();
 

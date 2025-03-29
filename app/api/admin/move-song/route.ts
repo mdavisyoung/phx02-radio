@@ -1,107 +1,74 @@
 import { NextResponse } from 'next/server';
-import { HeadObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getS3Client, BUCKET_NAME } from '@/app/lib/aws-config';
+import { s3Client } from '@/app/lib/aws-config';
+import { CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getMetadata, updateMetadata } from '@/app/lib/metadata';
+import type { SongMetadata } from '@/app/types/audio';
 
 export async function POST(request: Request) {
-  try {
-    const s3Client = getS3Client();
     if (!s3Client) {
-      throw new Error('S3 client is not initialized');
+        console.error('S3 client is not initialized');
+        return NextResponse.json({ error: 'S3 client is not initialized' }, { status: 500 });
     }
-
-    const { songKey } = await request.json();
-    if (!songKey) {
-      return NextResponse.json(
-        { error: 'Song key is required' },
-        { status: 400 }
-      );
-    }
-
-    console.log('Processing song:', songKey);
-    console.log('Bucket name:', BUCKET_NAME);
-
-    // Get the filename from the path
-    const filename = songKey.split('/').pop();
-    if (!filename) {
-      return NextResponse.json(
-        { error: 'Invalid song key' },
-        { status: 400 }
-      );
-    }
-
-    // Create the new key in the songs folder
-    const newSongKey = `songs/${filename}`;
-    
-    // Format the CopySource with URL-encoded key portion
-    const copySource = `${BUCKET_NAME}/${encodeURIComponent(songKey)}`;
-    console.log('Copy command params:', {
-      Bucket: BUCKET_NAME,
-      CopySource: copySource,
-      Key: newSongKey,
-      SourcePath: songKey
-    });
 
     try {
-      // First verify the source file exists
-      try {
-        await s3Client.send(
-          new HeadObjectCommand({
-            Bucket: BUCKET_NAME,
+        const { songKey } = await request.json();
+
+        if (!songKey) {
+            return NextResponse.json(
+                { error: 'Song key is required' },
+                { status: 400 }
+            );
+        }
+
+        // Get current metadata
+        const metadata = await getMetadata();
+        if (!metadata || !Array.isArray(metadata)) {
+            return NextResponse.json(
+                { error: 'No metadata found' },
+                { status: 404 }
+            );
+        }
+
+        // Find the song in metadata
+        const song = metadata.find((s: SongMetadata) => s.songKey === songKey);
+        if (!song) {
+            return NextResponse.json(
+                { error: 'Song not found in metadata' },
+                { status: 404 }
+            );
+        }
+
+        // Calculate new path
+        const newKey = songKey.replace('submissions/', 'songs/');
+
+        // Copy the file to the new location
+        const copyCommand = new CopyObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME || '',
+            CopySource: `${process.env.S3_BUCKET_NAME}/${songKey}`,
+            Key: newKey
+        });
+
+        await s3Client.send(copyCommand);
+
+        // Delete the original file
+        const deleteCommand = new DeleteObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME || '',
             Key: songKey
-          })
-        );
-      } catch (error) {
-        console.error('Source file does not exist:', error);
+        });
+
+        await s3Client.send(deleteCommand);
+
+        // Update metadata
+        song.songKey = newKey;
+        song.approved = true;
+        await updateMetadata(metadata);
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error moving song:', error);
         return NextResponse.json(
-          { error: `File ${songKey} does not exist in bucket ${BUCKET_NAME}` },
-          { status: 404 }
+            { error: 'Failed to move song' },
+            { status: 500 }
         );
-      }
-
-      // Copy the file to the new location
-      await s3Client.send(
-        new CopyObjectCommand({
-          Bucket: BUCKET_NAME,
-          CopySource: copySource,
-          Key: newSongKey,
-        })
-      );
-      console.log('File copied successfully');
-
-      // Delete the original file
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: songKey,
-        })
-      );
-      console.log('Original file deleted successfully');
-
-      // Update metadata with new path
-      const metadata = await getMetadata();
-      if (metadata[songKey]) {
-        const updatedMetadata = { ...metadata };
-        updatedMetadata[newSongKey] = {
-          ...metadata[songKey],
-          songKey: newSongKey,
-          approved: true,
-        };
-        delete updatedMetadata[songKey];
-        await updateMetadata(updatedMetadata);
-        console.log('Metadata updated successfully');
-      }
-
-      return NextResponse.json({ success: true });
-    } catch (s3Error: any) {
-      console.error('S3 operation failed:', s3Error);
-      throw new Error(s3Error.message || 'S3 operation failed');
     }
-  } catch (error: any) {
-    console.error('Error moving song:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to move song files' },
-      { status: 500 }
-    );
-  }
 } 
