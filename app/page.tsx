@@ -1,147 +1,110 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import AudioPlayer from '../components/AudioPlayer';
 import SubmitForm from '../components/SubmitForm';
+import Image from 'next/image';
+import S3FileList from '@/components/S3FileList';
 
-interface Song {
+interface S3Song {
   id: string;
-  title: string;
-  artist: string;
   audioUrl: string;
-  coverArt: string;
-  instagram?: string;
-  twitter?: string;
-  status: 'pending' | 'active';
-  createdAt: string;
+  coverUrl: string;
+  title: string;
 }
 
 export default function Home() {
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [playlist, setPlaylist] = useState<Song[]>([]);
-  const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState(0);
-  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [queue, setQueue] = useState<S3Song[]>([]);
+  const [currentSong, setCurrentSong] = useState<S3Song | null>(null);
 
-  useEffect(() => {
-    // Load songs and playlist
-    Promise.all([
-      fetch('/api/songs').then(res => res.json()),
-      fetch('/api/playlist').then(res => res.json())
-    ])
-      .then(([songsData, playlistData]) => {
-        if (songsData.songs) {
-          // Only store active songs
-          const activeSongs = songsData.songs.filter((song: Song) => song.status === 'active');
-          setSongs(activeSongs);
-        }
-        if (playlistData.playlist) {
-          setPlaylist(playlistData.playlist);
-          // If there's an active song, find its index in the playlist
-          if (songsData.activeSongId) {
-            const activeIndex = playlistData.playlist.findIndex(
-              (song: Song) => song.id === songsData.activeSongId
-            );
-            if (activeIndex !== -1) {
-              setCurrentPlaylistIndex(activeIndex);
-              setCurrentSong(playlistData.playlist[activeIndex]);
-            }
-          }
-        }
-      })
-      .catch((error) => {
-        console.error('Error loading data:', error);
-      });
-  }, []);
+  const handleAddToQueue = (song: S3Song) => {
+    if (!currentSong) {
+      setCurrentSong(song);
+    } else {
+      setQueue([...queue, song]);
+    }
+  };
 
   const handleSongEnd = () => {
-    if (playlist.length === 0) return;
-    
-    // Move to the next song in the playlist
-    const nextIndex = (currentPlaylistIndex + 1) % playlist.length;
-    setCurrentPlaylistIndex(nextIndex);
-    setCurrentSong(playlist[nextIndex]);
+    if (queue.length > 0) {
+      const [nextSong, ...remainingQueue] = queue;
+      setCurrentSong(nextSong);
+      setQueue(remainingQueue);
+    } else {
+      setCurrentSong(null);
+    }
   };
 
   return (
-    <main className="min-h-screen relative">
-      {/* Background Image with Overlay */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          backgroundImage: 'url(/phx02.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'brightness(0.3) saturate(1.2)',
-        }}
-      />
-
-      {/* Content Overlay */}
-      <div className="relative z-10">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-12">
-            <div>
-              <img
-                src="/phx02-main-logo.jpg"
-                alt="PHX02 Radio"
-                className="h-16 w-auto"
-              />
-              <p className="text-xl text-gray-400 mt-2">Underground Hip Hop</p>
-            </div>
-            <div className="flex items-center space-x-6">
-              <Link
-                href="/submit"
-                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-              >
-                Submit Track
-              </Link>
-              <Link
-                href="/admin"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                Admin
-              </Link>
-            </div>
+    <main className="min-h-screen p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-8">
+          <div className="relative w-64 h-64 mx-auto mb-4">
+            <Image
+              src="/phx02-main-logo.jpg"
+              alt="PHX02 Radio Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
+          <h1 className="text-4xl font-bold mb-2">PHX02 Radio</h1>
+          <p className="text-xl text-gray-600">Your Underground Electronic Music Station</p>
+        </div>
 
-          <div className="max-w-4xl mx-auto mb-16">
-            {currentSong ? (
+        {/* Audio Player */}
+        <div className="mb-8">
+          {currentSong ? (
+            <div className="bg-gray-100 rounded-lg p-4">
               <AudioPlayer
                 key={currentSong.id}
-                song={currentSong}
+                audioUrl={currentSong.audioUrl}
                 onEnded={handleSongEnd}
               />
-            ) : (
-              <div className="text-center text-gray-400 py-16 bg-gray-900/50 rounded-lg">
-                <h2 className="text-2xl font-bold mb-2">Welcome to PHX02 Radio</h2>
-                <p>No tracks are currently playing. Check back soon or submit your own!</p>
-              </div>
-            )}
-          </div>
-
-          {/* Submit Form Modal */}
-          {showSubmitForm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-              <div className="bg-gray-900 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-white">Submit Your Track</h2>
-                  <button
-                    onClick={() => setShowSubmitForm(false)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <SubmitForm
-                  onSubmitSuccess={(newSong) => {
-                    setSongs([...songs, newSong]);
-                    setShowSubmitForm(false);
-                  }}
-                />
+              <div className="mt-4">
+                <h3 className="font-semibold">Now Playing: {currentSong.title}</h3>
+                {queue.length > 0 && (
+                  <p className="text-gray-600">Next up: {queue[0].title}</p>
+                )}
               </div>
             </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-100 rounded-lg">
+              <p className="text-gray-600">Select a track to start playing</p>
+            </div>
           )}
+        </div>
+
+        {/* Queue Display */}
+        {queue.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4">Queue</h2>
+            <div className="bg-gray-100 rounded-lg p-4">
+              <ul className="space-y-2">
+                {queue.map((song, index) => (
+                  <li key={`${song.id}-${index}`} className="flex items-center space-x-4">
+                    {song.coverUrl && (
+                      <div className="relative w-12 h-12">
+                        <Image
+                          src={song.coverUrl}
+                          alt={song.title}
+                          fill
+                          className="object-cover rounded"
+                        />
+                      </div>
+                    )}
+                    <span>{song.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Available Tracks</h2>
+          <S3FileList onAddToQueue={handleAddToQueue} />
         </div>
       </div>
     </main>

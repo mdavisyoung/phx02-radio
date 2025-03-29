@@ -1,222 +1,127 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
-import { FaPlay, FaPause, FaInstagram, FaTwitter, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
-
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  audioUrl: string;
-  coverArt: string;
-  instagram?: string;
-  twitter?: string;
-}
+import { useEffect, useRef, useState } from 'react';
 
 interface AudioPlayerProps {
-  song: Song;
-  onEnded?: () => void;
+  audioUrl: string;
+  onEnded: () => void;
 }
 
-export default function AudioPlayer({ song, onEnded }: AudioPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
+export default function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.7);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const previousVolume = useRef(volume);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    const wavesurfer = WaveSurfer.create({
-      container: containerRef.current,
-      waveColor: '#4a5568',
-      progressColor: '#f7fafc',
-      cursorColor: '#f7fafc',
-      barWidth: 2,
-      barRadius: 3,
-      cursorWidth: 1,
-      height: 80,
-      barGap: 3,
-    });
-
-    wavesurferRef.current = wavesurfer;
-
-    // Create audio context and analyser
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    // Connect WaveSurfer to analyser
-    wavesurfer.on('ready', () => {
-      if (!wavesurfer.getMediaElement()) return;
-      
-      const source = audioContext.createMediaElementSource(wavesurfer.getMediaElement());
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-      
-      wavesurfer.play();
-      setIsPlaying(true);
-
-      // Start drawing the equalizer
-      function drawEqualizer() {
-        if (!canvasRef.current) return;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const WIDTH = canvas.width;
-        const HEIGHT = canvas.height;
-
-        analyser.getByteFrequencyData(dataArray);
-
-        ctx.fillStyle = '#000000'; // Black background
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-        const barWidth = (WIDTH / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          barHeight = (dataArray[i] / 255) * HEIGHT;
-
-          ctx.fillStyle = '#FFFFFF'; // White bars
-          ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
-
-          x += barWidth + 1;
-        }
-
-        requestAnimationFrame(drawEqualizer);
-      }
-
-      drawEqualizer();
-    });
-
-    wavesurfer.load(song.audioUrl);
-    wavesurfer.setVolume(volume);
-
-    wavesurfer.on('finish', () => {
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration);
+    const handleEnded = () => {
       setIsPlaying(false);
-      if (onEnded) onEnded();
-    });
+      onEnded();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
-      wavesurfer.destroy();
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('ended', handleEnded);
     };
-  }, [song.audioUrl, onEnded, volume]);
-
-  useEffect(() => {
-    if (wavesurferRef.current) {
-      wavesurferRef.current.setVolume(isMuted ? 0 : volume);
-    }
-  }, [volume, isMuted]);
+  }, [onEnded]);
 
   const togglePlayPause = () => {
-    if (wavesurferRef.current) {
-      wavesurferRef.current.playPause();
-      setIsPlaying(!isPlaying);
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
     }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    const time = Number(e.target.value);
+    audioRef.current.currentTime = time;
+    setCurrentTime(time);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
+    if (!audioRef.current) return;
+    const newVolume = Number(e.target.value);
+    audioRef.current.volume = newVolume;
     setVolume(newVolume);
-    previousVolume.current = newVolume;
+    if (newVolume > 0) {
+      setIsMuted(false);
+    }
   };
 
   const toggleMute = () => {
-    if (isMuted) {
-      setVolume(previousVolume.current);
-    } else {
-      previousVolume.current = volume;
-      setVolume(0);
-    }
-    setIsMuted(!isMuted);
+    if (!audioRef.current) return;
+    const newMuted = !isMuted;
+    audioRef.current.muted = newMuted;
+    setIsMuted(newMuted);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="bg-black rounded-lg p-6 shadow-xl border border-gray-800">
-      <div className="flex items-center mb-6">
-        <img
-          src={song.coverArt}
-          alt={`${song.title} cover`}
-          className="w-20 h-20 rounded-lg object-cover mr-4"
-        />
-        <div>
-          <h2 className="text-xl font-bold text-white">{song.title}</h2>
-          <p className="text-gray-400">{song.artist}</p>
-          {(song.instagram || song.twitter) && (
-            <div className="flex space-x-4 mt-2">
-              {song.instagram && (
-                <a
-                  href={`https://instagram.com/${song.instagram}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  @{song.instagram}
-                </a>
-              )}
-              {song.twitter && (
-                <a
-                  href={`https://twitter.com/${song.twitter}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  @{song.twitter}
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div ref={containerRef} className="mb-4" />
+    <div className="bg-white p-4 rounded-lg shadow">
+      <audio ref={audioRef} src={audioUrl} />
       
-      <canvas 
-        ref={canvasRef} 
-        width="800" 
-        height="100" 
-        className="w-full mb-4 rounded-lg bg-black"
-      />
-
       <div className="flex items-center space-x-4">
         <button
           onClick={togglePlayPause}
-          className="p-3 bg-white/5 rounded-full hover:bg-white/10 transition-colors text-white"
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors"
         >
-          {isPlaying ? <FaPause size={16} /> : <FaPlay size={16} />}
+          {isPlaying ? '⏸' : '▶'}
         </button>
+        
+        <div className="flex-1">
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={currentTime}
+            onChange={handleSeek}
+            className="w-full"
+          />
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
 
-        <button
-          onClick={toggleMute}
-          className="p-3 bg-white/5 rounded-full hover:bg-white/10 transition-colors text-white"
-        >
-          {isMuted || volume === 0 ? (
-            <FaVolumeMute size={16} />
-          ) : (
-            <FaVolumeUp size={16} />
-          )}
-        </button>
-
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={handleVolumeChange}
-          className="flex-1 h-2 bg-white/5 rounded-lg appearance-none cursor-pointer"
-          style={{
-            background: `linear-gradient(to right, #ffffff ${volume * 100}%, rgba(255, 255, 255, 0.05) ${volume * 100}%)`,
-          }}
-        />
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={toggleMute}
+            className="p-2 hover:bg-gray-100 rounded-full"
+          >
+            {isMuted ? '🔇' : '🔊'}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.1}
+            value={volume}
+            onChange={handleVolumeChange}
+            className="w-24"
+          />
+        </div>
       </div>
     </div>
   );
