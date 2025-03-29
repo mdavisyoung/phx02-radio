@@ -20,35 +20,50 @@ interface SubmitFormProps {
 }
 
 export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverArt, setCoverArt] = useState<File | null>(null);
   const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(false);
     setIsSubmitting(true);
-    setError('');
 
     try {
+      if (!title || !artist || !audioFile || !coverArt) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      // Check file size
+      if (audioFile.size > 50 * 1024 * 1024) { // 50MB limit
+        throw new Error('Audio file must be smaller than 50MB');
+      }
+
+      if (coverArt.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('Cover art must be smaller than 5MB');
+      }
+
       const formData = new FormData();
       formData.append('title', title);
       formData.append('artist', artist);
-      if (audioFile) formData.append('audioFile', audioFile);
-      if (coverArt) formData.append('coverArt', coverArt);
+      formData.append('audioFile', audioFile);
+      formData.append('coverArt', coverArt);
+
       if (instagram) formData.append('instagram', instagram);
       if (twitter) formData.append('twitter', twitter);
 
       console.log('Submitting form data:', {
         title,
         artist,
-        hasAudioFile: !!audioFile,
-        hasCoverArt: !!coverArt,
+        audioFileName: audioFile.name,
+        coverArtName: coverArt.name,
         instagram,
         twitter
       });
@@ -58,14 +73,14 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
         body: formData,
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Error submitting song');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to submit song');
       }
 
-      console.log('Submit response:', data);
-
+      const data = await response.json();
+      console.log('Submission successful:', data);
+      
       // Reset form
       setTitle('');
       setArtist('');
@@ -76,114 +91,119 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       setSuccess(true);
 
       onSubmitSuccess(data.song);
-    } catch (error) {
-      console.error('Submit error:', error);
-      setError((error as Error).message);
+    } catch (err) {
+      console.error('Submission error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto bg-black/70 rounded-lg p-8 backdrop-blur-sm">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">Submit Your Track</h2>
-        <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-          Back to Home
-        </Link>
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8">Submit Your Track</h1>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          Track submitted successfully!
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Track Title <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md"
+          required
+        />
       </div>
 
-      <div className="space-y-6">
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-300">
-            Track Title *
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md bg-black/80 border-2 border-gray-600 text-white shadow-sm focus:border-white focus:ring-white placeholder-gray-400"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="artist" className="block text-sm font-medium text-gray-300">
-            Artist Name *
-          </label>
-          <input
-            type="text"
-            id="artist"
-            value={artist}
-            onChange={(e) => setArtist(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md bg-black/80 border-2 border-gray-600 text-white shadow-sm focus:border-white focus:ring-white placeholder-gray-400"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="audioFile" className="block text-sm font-medium text-gray-300">
-            Audio File (MP3) *
-          </label>
-          <input
-            type="file"
-            id="audioFile"
-            accept="audio/mp3"
-            onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-            required
-            className="mt-1 block w-full text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-2 file:border-gray-600 file:text-sm file:font-semibold file:bg-black/80 file:text-white hover:file:bg-black/90 hover:file:border-gray-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="coverArt" className="block text-sm font-medium text-gray-300">
-            Cover Art *
-          </label>
-          <input
-            type="file"
-            id="coverArt"
-            accept="image/*"
-            onChange={(e) => setCoverArt(e.target.files?.[0] || null)}
-            required
-            className="mt-1 block w-full text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-2 file:border-gray-600 file:text-sm file:font-semibold file:bg-black/80 file:text-white hover:file:bg-black/90 hover:file:border-gray-500"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="instagram" className="block text-sm font-medium text-gray-300">
-            Instagram Handle (optional)
-          </label>
-          <input
-            type="text"
-            id="instagram"
-            value={instagram}
-            onChange={(e) => setInstagram(e.target.value)}
-            className="mt-1 block w-full rounded-md bg-black/80 border-2 border-gray-600 text-white shadow-sm focus:border-white focus:ring-white placeholder-gray-400"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="twitter" className="block text-sm font-medium text-gray-300">
-            Twitter Handle (optional)
-          </label>
-          <input
-            type="text"
-            id="twitter"
-            value={twitter}
-            onChange={(e) => setTwitter(e.target.value)}
-            className="mt-1 block w-full rounded-md bg-black/80 border-2 border-gray-600 text-white shadow-sm focus:border-white focus:ring-white placeholder-gray-400"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors disabled:opacity-50 border-2 border-gray-600 hover:border-gray-500"
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Track'}
-        </button>
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Artist Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={artist}
+          onChange={(e) => setArtist(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md"
+          required
+        />
       </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Audio File (MP3) <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="file"
+          accept="audio/mp3"
+          onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+          className="w-full"
+          required
+        />
+        <p className="text-sm text-gray-500 mt-1">Maximum size: 50MB</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Cover Art <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setCoverArt(e.target.files?.[0] || null)}
+          className="w-full"
+          required
+        />
+        <p className="text-sm text-gray-500 mt-1">Maximum size: 5MB</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Instagram Handle (optional)
+        </label>
+        <input
+          type="text"
+          value={instagram}
+          onChange={(e) => setInstagram(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Twitter Handle (optional)
+        </label>
+        <input
+          type="text"
+          value={twitter}
+          onChange={(e) => setTwitter(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+          isSubmitting
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700'
+        }`}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit Track'}
+      </button>
     </form>
   );
 } 

@@ -6,6 +6,16 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
+// Configure body size limit
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb'
+    },
+    responseLimit: '50mb'
+  }
+};
+
 export async function POST(request: Request) {
   try {
     console.log('Received submission request');
@@ -24,7 +34,15 @@ export async function POST(request: Request) {
       console.error('Missing required fields:', { title, artist, audioFile, coverArt });
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Content-Type': 'application/json',
+          }
+        }
       );
     }
 
@@ -53,12 +71,30 @@ export async function POST(request: Request) {
 
     console.log('Song added successfully:', song);
 
-    return NextResponse.json({ success: true, song });
+    return NextResponse.json(
+      { success: true, song },
+      {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   } catch (error) {
     console.error('Error processing submission:', error);
     return NextResponse.json(
       { error: 'Error processing submission' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 } 
