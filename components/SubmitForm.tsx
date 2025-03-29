@@ -27,38 +27,44 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
   const [coverArt, setCoverArt] = useState<File | null>(null);
   const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !artist || !audioFile || !coverArt) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
     setIsSubmitting(true);
+    setError('');
 
     try {
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('title', title);
       formData.append('artist', artist);
-      formData.append('audioFile', audioFile);
-      formData.append('coverArt', coverArt);
+      if (audioFile) formData.append('audioFile', audioFile);
+      if (coverArt) formData.append('coverArt', coverArt);
       if (instagram) formData.append('instagram', instagram);
       if (twitter) formData.append('twitter', twitter);
+
+      console.log('Submitting form data:', {
+        title,
+        artist,
+        hasAudioFile: !!audioFile,
+        hasCoverArt: !!coverArt,
+        instagram,
+        twitter
+      });
 
       const response = await fetch('/api/submit', {
         method: 'POST',
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit song');
+        throw new Error(data.error || 'Error submitting song');
       }
 
-      const newSong = await response.json();
-      onSubmitSuccess(newSong);
+      console.log('Submit response:', data);
 
       // Reset form
       setTitle('');
@@ -67,11 +73,12 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       setCoverArt(null);
       setInstagram('');
       setTwitter('');
+      setSuccess(true);
 
-      alert('Song submitted successfully!');
+      onSubmitSuccess(data.song);
     } catch (error) {
-      console.error('Error submitting song:', error);
-      alert('Error submitting song. Please try again.');
+      console.error('Submit error:', error);
+      setError((error as Error).message);
     } finally {
       setIsSubmitting(false);
     }

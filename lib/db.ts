@@ -15,6 +15,24 @@ interface Song {
 // In-memory storage for development
 let songs: Song[] = [];
 
+// Helper function to create a safe filename
+function createSafeFileName(title: string, extension: string): string {
+  const date = new Date();
+  const timestamp = date.toISOString()
+    .replace(/[:.]/g, '-')
+    .replace('T', '_')
+    .slice(0, 19); // Gets YYYY-MM-DD_HH-mm-ss
+  
+  // Clean the title: remove special chars and spaces, convert to lowercase
+  const safeTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  
+  return `${safeTitle}_${timestamp}${extension}`;
+}
+
 export const db = {
   // Get all songs with a specific status
   getSongs: (status: 'pending' | 'active'): Song[] => {
@@ -39,10 +57,13 @@ export const db = {
     twitter?: string
   ): Promise<Song> => {
     try {
-      // Generate unique filenames
-      const timestamp = Date.now();
-      const audioFileName = `${timestamp}-${audioFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-      const coverFileName = `${timestamp}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+      // Get file extensions
+      const audioExt = audioFile.name.split('.').pop() || '.mp3';
+      const coverExt = coverFile.name.split('.').pop() || '.jpg';
+      
+      // Generate filenames using title and timestamp
+      const audioFileName = createSafeFileName(title, `.${audioExt}`);
+      const coverFileName = createSafeFileName(title, `.${coverExt}`);
       
       console.log('Processing files:', {
         audioFileName,

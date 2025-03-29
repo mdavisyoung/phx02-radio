@@ -1,31 +1,24 @@
 import { NextResponse } from 'next/server';
-import { writeFile, readFile } from 'fs/promises';
-import path from 'path';
+import { db } from '@/lib/db';
+
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  audioUrl: string;
+  coverArt: string;
+  instagram?: string;
+  twitter?: string;
+  status: 'pending' | 'active';
+  createdAt: string;
+}
 
 export async function POST(request: Request) {
   try {
     const { songId } = await request.json();
     
-    // Read songs.json
-    const songsPath = path.join(process.cwd(), 'data/songs.json');
-    const songsData = await readFile(songsPath, 'utf-8');
-    const songs = JSON.parse(songsData);
-
-    // Find the song
-    const song = songs.find((s: any) => s.id === songId);
-    if (!song) {
-      return NextResponse.json(
-        { error: 'Song not found' },
-        { status: 404 }
-      );
-    }
-
-    // Save active song ID to a separate file
-    const activeSongPath = path.join(process.cwd(), 'data/active-song.json');
-    await writeFile(
-      activeSongPath,
-      JSON.stringify({ activeSongId: songId }, null, 2)
-    );
+    // Update song status
+    db.updateSongStatus(songId, 'active');
 
     return NextResponse.json({ success: true });
   } catch (error) {

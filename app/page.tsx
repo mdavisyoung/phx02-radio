@@ -83,7 +83,7 @@ export default function Home() {
           <div className="flex justify-between items-center mb-12">
             <div>
               <img
-                src="/phx02 main logo.jpg"
+                src="/phx02-main-logo.jpg"
                 alt="PHX02 Radio"
                 className="h-16 w-auto"
               />
