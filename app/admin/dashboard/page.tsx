@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaPlay, FaPause, FaArrowUp, FaArrowDown, FaCheck, FaTimes } from 'react-icons/fa';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Song {
   id: string;
@@ -17,10 +18,19 @@ interface Song {
   createdAt: string;
 }
 
+interface S3File {
+  key: string;
+  url: string;
+  size: number;
+  lastModified: string;
+}
+
 export default function AdminDashboard() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [playlist, setPlaylist] = useState<Song[]>([]);
+  const [s3Files, setS3Files] = useState<S3File[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -31,12 +41,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Load songs and playlist
+    // Load songs, playlist, and S3 files
     Promise.all([
       fetch('/api/songs').then(res => res.json()),
-      fetch('/api/playlist').then(res => res.json())
+      fetch('/api/playlist').then(res => res.json()),
+      fetch('/api/s3-files').then(res => res.json())
     ])
-      .then(([songsData, playlistData]) => {
+      .then(([songsData, playlistData, s3Data]) => {
         if (songsData.songs) {
           setSongs(songsData.songs);
         }
@@ -47,9 +58,15 @@ export default function AdminDashboard() {
             if (active) setCurrentSong(active);
           }
         }
+        if (s3Data.songs) {
+          setS3Files(s3Data.songs);
+        }
       })
       .catch((error) => {
         console.error('Error loading data:', error);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, [router]);
 
@@ -203,150 +220,194 @@ export default function AdminDashboard() {
   };
 
   return (
-    <main className="min-h-screen relative">
-      {/* Background Image with Overlay */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          backgroundImage: 'url(/phx02-skel.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'brightness(0.3) saturate(1.2)',
-        }}
-      />
-
-      {/* Content Overlay */}
-      <div className="relative z-10 min-h-screen bg-black/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto p-8">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-white">PHX02 Radio Admin</h1>
-              <Link href="/" className="text-gray-400 hover:text-white transition-colors">
-                Back to Home
-              </Link>
-            </div>
+    <main className="min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/"
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+            >
+              View Site
+            </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-black/50 text-white rounded hover:bg-black/70 transition-colors"
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
             >
               Logout
             </button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Available Songs */}
-            <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4 text-white">Available Songs</h2>
-              <div className="space-y-4">
-                {songs.map((song) => (
-                  <div
-                    key={song.id}
-                    className={`bg-black/70 rounded-lg overflow-hidden shadow-lg flex items-center ${
-                      song.status === 'pending' ? 'border-l-4 border-yellow-500' : ''
-                    }`}
-                  >
-                    <img
-                      src={song.coverArt}
-                      alt={`${song.title} cover`}
-                      className="w-16 h-16 object-cover"
-                    />
-                    <div className="flex-1 px-4">
-                      <h3 className="font-semibold text-white">{song.title}</h3>
-                      <p className="text-gray-400">{song.artist}</p>
-                    </div>
-                    <div className="flex items-center space-x-2 px-4">
-                      {song.status === 'pending' ? (
-                        <>
-                          <button
-                            onClick={() => approveSong(song)}
-                            className="p-2 text-green-500 hover:text-green-400 transition-colors"
-                            title="Approve"
-                          >
-                            <FaCheck />
-                          </button>
-                          <button
-                            onClick={() => rejectSong(song)}
-                            className="p-2 text-red-500 hover:text-red-400 transition-colors"
-                            title="Reject"
-                          >
-                            <FaTimes />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => setActiveTrack(song)}
-                            className={`p-2 ${
-                              currentSong?.id === song.id
-                                ? 'text-green-500'
-                                : 'text-white hover:text-green-500'
-                            } transition-colors`}
-                            title={currentSong?.id === song.id ? 'Now Playing' : 'Set as Active'}
-                          >
-                            {currentSong?.id === song.id ? <FaPause /> : <FaPlay />}
-                          </button>
-                          <button
-                            onClick={() => addToPlaylist(song)}
-                            className="p-2 text-blue-500 hover:text-blue-400 transition-colors"
-                            title="Add to Playlist"
-                          >
-                            ➕
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => deleteSong(song)}
-                        className="p-2 text-red-500 hover:text-red-400 transition-colors"
-                        title="Delete Song"
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* S3 Files Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-4">S3 Files</h2>
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             </div>
-
-            {/* Current Playlist */}
-            <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4 text-white">Current Playlist</h2>
-              <div className="space-y-4">
-                {playlist.map((song, index) => (
-                  <div
-                    key={song.id}
-                    className="bg-black/70 rounded-lg overflow-hidden shadow-lg flex items-center"
-                  >
-                    <div className="w-12 h-12 flex items-center justify-center text-gray-500 font-mono">
-                      {index + 1}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {s3Files.map((file) => (
+                <div
+                  key={file.key}
+                  className="border rounded-lg p-4 flex flex-col space-y-2"
+                >
+                  {file.key.includes('covers/') ? (
+                    <div className="relative w-full aspect-square">
+                      <Image
+                        src={file.url}
+                        alt={file.key}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
                     </div>
-                    <img
-                      src={song.coverArt}
-                      alt={`${song.title} cover`}
-                      className="w-16 h-16 object-cover"
-                    />
-                    <div className="flex-1 p-4">
-                      <h3 className="font-bold">{song.title}</h3>
-                      <p className="text-gray-400">{song.artist}</p>
-                    </div>
-                    <div className="flex flex-col space-y-2 p-4">
-                      <button
-                        onClick={() => moveInPlaylist(song.id, 'up')}
-                        disabled={index === 0}
-                        className="p-2 rounded bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
-                      >
-                        <FaArrowUp size={16} />
-                      </button>
-                      <button
-                        onClick={() => moveInPlaylist(song.id, 'down')}
-                        disabled={index === playlist.length - 1}
-                        className="p-2 rounded bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
-                      >
-                        <FaArrowDown size={16} />
-                      </button>
-                    </div>
+                  ) : null}
+                  <div>
+                    <p className="font-medium truncate">{file.key}</p>
+                    <p className="text-sm text-gray-500">
+                      Size: {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Modified: {new Date(file.lastModified).toLocaleDateString()}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <div className="flex space-x-2">
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-center rounded transition-colors"
+                    >
+                      Download
+                    </a>
+                    <button
+                      onClick={() => deleteSong({ id: file.key } as Song)}
+                      className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Available Songs */}
+          <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6">
+            <h2 className="text-xl font-bold mb-4 text-white">Available Songs</h2>
+            <div className="space-y-4">
+              {songs.map((song) => (
+                <div
+                  key={song.id}
+                  className={`bg-black/70 rounded-lg overflow-hidden shadow-lg flex items-center ${
+                    song.status === 'pending' ? 'border-l-4 border-yellow-500' : ''
+                  }`}
+                >
+                  <img
+                    src={song.coverArt}
+                    alt={`${song.title} cover`}
+                    className="w-16 h-16 object-cover"
+                  />
+                  <div className="flex-1 px-4">
+                    <h3 className="font-semibold text-white">{song.title}</h3>
+                    <p className="text-gray-400">{song.artist}</p>
+                  </div>
+                  <div className="flex items-center space-x-2 px-4">
+                    {song.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => approveSong(song)}
+                          className="p-2 text-green-500 hover:text-green-400 transition-colors"
+                          title="Approve"
+                        >
+                          <FaCheck />
+                        </button>
+                        <button
+                          onClick={() => rejectSong(song)}
+                          className="p-2 text-red-500 hover:text-red-400 transition-colors"
+                          title="Reject"
+                        >
+                          <FaTimes />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setActiveTrack(song)}
+                          className={`p-2 ${
+                            currentSong?.id === song.id
+                              ? 'text-green-500'
+                              : 'text-white hover:text-green-500'
+                          } transition-colors`}
+                          title={currentSong?.id === song.id ? 'Now Playing' : 'Set as Active'}
+                        >
+                          {currentSong?.id === song.id ? <FaPause /> : <FaPlay />}
+                        </button>
+                        <button
+                          onClick={() => addToPlaylist(song)}
+                          className="p-2 text-blue-500 hover:text-blue-400 transition-colors"
+                          title="Add to Playlist"
+                        >
+                          ➕
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => deleteSong(song)}
+                      className="p-2 text-red-500 hover:text-red-400 transition-colors"
+                      title="Delete Song"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Playlist */}
+          <div className="bg-black/50 backdrop-blur-sm rounded-lg p-6">
+            <h2 className="text-xl font-bold mb-4 text-white">Current Playlist</h2>
+            <div className="space-y-4">
+              {playlist.map((song, index) => (
+                <div
+                  key={song.id}
+                  className="bg-black/70 rounded-lg overflow-hidden shadow-lg flex items-center"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center text-gray-500 font-mono">
+                    {index + 1}
+                  </div>
+                  <img
+                    src={song.coverArt}
+                    alt={`${song.title} cover`}
+                    className="w-16 h-16 object-cover"
+                  />
+                  <div className="flex-1 p-4">
+                    <h3 className="font-bold">{song.title}</h3>
+                    <p className="text-gray-400">{song.artist}</p>
+                  </div>
+                  <div className="flex flex-col space-y-2 p-4">
+                    <button
+                      onClick={() => moveInPlaylist(song.id, 'up')}
+                      disabled={index === 0}
+                      className="p-2 rounded bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+                    >
+                      <FaArrowUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => moveInPlaylist(song.id, 'down')}
+                      disabled={index === playlist.length - 1}
+                      className="p-2 rounded bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+                    >
+                      <FaArrowDown size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
