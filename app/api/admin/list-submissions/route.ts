@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
-import { s3Client } from '@/app/lib/aws-config';
+import { getS3Client } from '@/app/lib/aws-config';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 export async function GET() {
-    if (!s3Client) {
-        console.error('S3 client is not initialized');
-        return NextResponse.json({ error: 'S3 client is not initialized' }, { status: 500 });
-    }
-
     try {
+        const s3Client = getS3Client();
         const command = new ListObjectsV2Command({
             Bucket: process.env.S3_BUCKET_NAME || '',
             Prefix: 'submissions/'

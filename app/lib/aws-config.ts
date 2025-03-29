@@ -1,34 +1,36 @@
 import { S3Client } from '@aws-sdk/client-s3';
 
-let s3ClientInstance: S3Client | null = null;
-
 // Only create the S3 client on the server side
-const createS3Client = () => {
-  if (typeof window === 'undefined') {
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-      console.error('AWS credentials are not configured');
-      return null;
+const createS3Client = (): S3Client => {
+    if (typeof window !== 'undefined') {
+        throw new Error('S3 client can only be created on the server side');
     }
 
-    if (!s3ClientInstance) {
-      s3ClientInstance = new S3Client({
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        throw new Error('AWS credentials are not configured');
+    }
+
+    return new S3Client({
         region: process.env.AWS_REGION || 'us-east-2',
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
         },
-      });
+    });
+};
+
+// Create a singleton instance for server components
+let s3ClientInstance: S3Client | null = null;
+
+export const getS3Client = (): S3Client => {
+    if (!s3ClientInstance) {
+        s3ClientInstance = createS3Client();
     }
-
     return s3ClientInstance;
-  }
-  return null;
 };
 
-// Ensure we create a new instance for each request in server components
-export const getS3Client = () => {
-  return createS3Client();
-};
+// Export the singleton instance
+export const s3Client = getS3Client();
 
-export const s3Client = createS3Client();
-export const BUCKET_NAME = process.env.AWS_BUCKET_NAME || 'phx02-radio-uploads'; 
+// Export bucket name
+export const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'phx02-radio-uploads'; 
