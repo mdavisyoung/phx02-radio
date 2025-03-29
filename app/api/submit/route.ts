@@ -19,9 +19,19 @@ export const config = {
 export async function POST(request: Request) {
   try {
     console.log('Received submission request');
-    const formData = await request.formData();
     
-    // Log received form data
+    // Get the content type
+    const contentType = request.headers.get('content-type') || '';
+    
+    // Ensure it's a multipart form data request
+    if (!contentType.includes('multipart/form-data')) {
+      return NextResponse.json(
+        { error: 'Content type must be multipart/form-data' },
+        { status: 415 }
+      );
+    }
+
+    const formData = await request.formData();
     console.log('Form data fields:', Array.from(formData.keys()));
 
     // Check required fields
@@ -34,15 +44,25 @@ export async function POST(request: Request) {
       console.error('Missing required fields:', { title, artist, audioFile, coverArt });
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { 
-          status: 400,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Content-Type': 'application/json',
-          }
-        }
+        { status: 400 }
+      );
+    }
+
+    // Check file sizes
+    const maxAudioSize = 50 * 1024 * 1024; // 50MB
+    const maxImageSize = 5 * 1024 * 1024;  // 5MB
+
+    if (audioFile.size > maxAudioSize) {
+      return NextResponse.json(
+        { error: 'Audio file must be smaller than 50MB' },
+        { status: 400 }
+      );
+    }
+
+    if (coverArt.size > maxImageSize) {
+      return NextResponse.json(
+        { error: 'Cover art must be smaller than 5MB' },
+        { status: 400 }
       );
     }
 
@@ -54,7 +74,9 @@ export async function POST(request: Request) {
       title,
       artist,
       audioFileName: audioFile.name,
+      audioFileSize: audioFile.size,
       coverFileName: coverArt.name,
+      coverFileSize: coverArt.size,
       instagram,
       twitter
     });
@@ -71,30 +93,12 @@ export async function POST(request: Request) {
 
     console.log('Song added successfully:', song);
 
-    return NextResponse.json(
-      { success: true, song },
-      {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Content-Type': 'application/json',
-        }
-      }
-    );
+    return NextResponse.json({ success: true, song });
   } catch (error) {
     console.error('Error processing submission:', error);
     return NextResponse.json(
       { error: 'Error processing submission' },
-      { 
-        status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Content-Type': 'application/json',
-        }
-      }
+      { status: 500 }
     );
   }
 } 

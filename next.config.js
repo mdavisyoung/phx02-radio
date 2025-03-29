@@ -16,13 +16,16 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-          { key: 'Content-Type', value: 'application/json' },
         ],
       },
     ];
   },
   images: {
     domains: ['phx02-radio-uploads.s3.us-east-2.amazonaws.com'],
+  },
+  api: {
+    bodyParser: false, // Disabling the default body parser
+    responseLimit: false,
   },
 };
 
