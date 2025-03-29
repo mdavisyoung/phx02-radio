@@ -29,57 +29,91 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const uploadToS3 = async (url: string, file: File) => {
+    const response = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload file: ${response.statusText}`);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(false);
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
       if (!title || !artist || !audioFile || !coverArt) {
         throw new Error('Please fill in all required fields');
       }
 
-      // Check file size
-      if (audioFile.size > 50 * 1024 * 1024) { // 50MB limit
+      // Check file sizes
+      if (audioFile.size > 50 * 1024 * 1024) {
         throw new Error('Audio file must be smaller than 50MB');
       }
 
-      if (coverArt.size > 5 * 1024 * 1024) { // 5MB limit
+      if (coverArt.size > 5 * 1024 * 1024) {
         throw new Error('Cover art must be smaller than 5MB');
       }
 
-      const formData = new FormData();
-      formData.append('title', title);
-      formData.append('artist', artist);
-      formData.append('audioFile', audioFile);
-      formData.append('coverArt', coverArt);
-
-      if (instagram) formData.append('instagram', instagram);
-      if (twitter) formData.append('twitter', twitter);
-
-      console.log('Submitting form data:', {
-        title,
-        artist,
-        audioFileName: audioFile.name,
-        coverArtName: coverArt.name,
-        instagram,
-        twitter
-      });
-
-      const response = await fetch('/api/submit', {
+      // Get signed URLs for uploads
+      const urlResponse = await fetch('/api/get-upload-urls', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          fileTypes: [audioFile.type, coverArt.type],
+        }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to submit song');
+      if (!urlResponse.ok) {
+        throw new Error('Failed to get upload URLs');
       }
 
-      const data = await response.json();
-      console.log('Submission successful:', data);
+      const { urls } = await urlResponse.json();
+      const [audioUrls, coverUrls] = urls;
+
+      // Upload files to S3
+      setUploadProgress(10);
+      await uploadToS3(audioUrls.signedUrl, audioFile);
+      setUploadProgress(50);
+      await uploadToS3(coverUrls.signedUrl, coverArt);
+      setUploadProgress(80);
+
+      // Submit metadata to our API
+      const submitResponse = await fetch('/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          artist,
+          audioUrl: audioUrls.publicUrl,
+          coverUrl: coverUrls.publicUrl,
+          instagram,
+          twitter,
+        }),
+      });
+
+      if (!submitResponse.ok) {
+        throw new Error('Failed to submit song metadata');
+      }
+
+      setUploadProgress(100);
+      setSuccess(true);
       
       // Reset form
       setTitle('');
@@ -88,8 +122,10 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       setCoverArt(null);
       setInstagram('');
       setTwitter('');
-      setSuccess(true);
 
+      const data = await submitResponse.json();
+      console.log('Submission successful:', data);
+      
       onSubmitSuccess(data.song);
     } catch (err) {
       console.error('Submission error:', err);
@@ -112,6 +148,29 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
           Track submitted successfully!
+        </div>
+      )}
+
+      {isSubmitting && (
+        <div className="relative pt-1">
+          <div className="flex mb-2 items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                Upload Progress
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-semibold inline-block text-blue-600">
+                {uploadProgress}%
+              </span>
+            </div>
+          </div>
+          <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+            <div
+              style={{ width: `${uploadProgress}%` }}
+              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
+            />
+          </div>
         </div>
       )}
 
@@ -202,7 +261,7 @@ export default function SubmitForm({ onSubmitSuccess }: SubmitFormProps) {
             : 'bg-blue-600 hover:bg-blue-700'
         }`}
       >
-        {isSubmitting ? 'Submitting...' : 'Submit Track'}
+        {isSubmitting ? 'Uploading...' : 'Submit Track'}
       </button>
     </form>
   );

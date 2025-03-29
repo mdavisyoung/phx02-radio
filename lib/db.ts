@@ -16,7 +16,7 @@ interface Song {
 let songs: Song[] = [];
 
 // Helper function to create a safe filename
-function createSafeFileName(title: string, extension: string): string {
+export function createSafeFileName(title: string, extension: string): string {
   const date = new Date();
   const timestamp = date.toISOString()
     .replace(/[:.]/g, '-')
@@ -47,63 +47,30 @@ export const db = {
     return activeSongs.length > 0 ? activeSongs[0] : null;
   },
 
-  // Add a new song
-  addSong: async (
+  // Add a new song with pre-uploaded files
+  addSongMetadata: async (
     title: string,
     artist: string,
-    audioFile: File,
-    coverFile: File,
+    audioUrl: string,
+    coverArt: string,
     instagram?: string,
     twitter?: string
   ): Promise<Song> => {
-    try {
-      // Get file extensions
-      const audioExt = audioFile.name.split('.').pop() || '.mp3';
-      const coverExt = coverFile.name.split('.').pop() || '.jpg';
-      
-      // Generate filenames using title and timestamp
-      const audioFileName = createSafeFileName(title, `.${audioExt}`);
-      const coverFileName = createSafeFileName(title, `.${coverExt}`);
-      
-      console.log('Processing files:', {
-        audioFileName,
-        coverFileName,
-        audioType: audioFile.type,
-        coverType: coverFile.type
-      });
+    const newSong: Song = {
+      id: crypto.randomUUID(),
+      title,
+      artist,
+      audioUrl,
+      coverArt,
+      instagram,
+      twitter,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
 
-      // Convert files to buffers
-      const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-      const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
-      
-      console.log('Uploading to S3...');
-
-      // Upload files to S3
-      const audioUrl = await uploadToS3(audioBuffer, `songs/${audioFileName}`, audioFile.type);
-      console.log('Audio uploaded:', audioUrl);
-      
-      const coverUrl = await uploadToS3(coverBuffer, `covers/${coverFileName}`, coverFile.type);
-      console.log('Cover uploaded:', coverUrl);
-
-      const newSong: Song = {
-        id: crypto.randomUUID(),
-        title,
-        artist,
-        audioUrl,
-        coverArt: coverUrl,
-        instagram,
-        twitter,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      };
-
-      console.log('Created new song:', newSong);
-      songs.push(newSong);
-      return newSong;
-    } catch (error) {
-      console.error('Error in addSong:', error);
-      throw error;
-    }
+    console.log('Created new song:', newSong);
+    songs.push(newSong);
+    return newSong;
   },
 
   // Clear all songs

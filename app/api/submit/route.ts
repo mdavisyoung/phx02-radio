@@ -20,73 +20,32 @@ export async function POST(request: Request) {
   try {
     console.log('Received submission request');
     
-    // Get the content type
-    const contentType = request.headers.get('content-type') || '';
-    
-    // Ensure it's a multipart form data request
-    if (!contentType.includes('multipart/form-data')) {
-      return NextResponse.json(
-        { error: 'Content type must be multipart/form-data' },
-        { status: 415 }
-      );
-    }
+    const data = await request.json();
+    const { title, artist, audioUrl, coverUrl, instagram, twitter } = data;
 
-    const formData = await request.formData();
-    console.log('Form data fields:', Array.from(formData.keys()));
-
-    // Check required fields
-    const title = formData.get('title') as string;
-    const artist = formData.get('artist') as string;
-    const audioFile = formData.get('audioFile') as File;
-    const coverArt = formData.get('coverArt') as File;
-
-    if (!title || !artist || !audioFile || !coverArt) {
-      console.error('Missing required fields:', { title, artist, audioFile, coverArt });
+    if (!title || !artist || !audioUrl || !coverUrl) {
+      console.error('Missing required fields:', { title, artist, audioUrl, coverUrl });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Check file sizes
-    const maxAudioSize = 50 * 1024 * 1024; // 50MB
-    const maxImageSize = 5 * 1024 * 1024;  // 5MB
-
-    if (audioFile.size > maxAudioSize) {
-      return NextResponse.json(
-        { error: 'Audio file must be smaller than 50MB' },
-        { status: 400 }
-      );
-    }
-
-    if (coverArt.size > maxImageSize) {
-      return NextResponse.json(
-        { error: 'Cover art must be smaller than 5MB' },
-        { status: 400 }
-      );
-    }
-
-    // Optional fields
-    const instagram = formData.get('instagram') as string;
-    const twitter = formData.get('twitter') as string;
-
     console.log('Processing submission:', {
       title,
       artist,
-      audioFileName: audioFile.name,
-      audioFileSize: audioFile.size,
-      coverFileName: coverArt.name,
-      coverFileSize: coverArt.size,
+      audioUrl,
+      coverUrl,
       instagram,
       twitter
     });
 
     // Add song to database
-    const song = await db.addSong(
+    const song = await db.addSongMetadata(
       title,
       artist,
-      audioFile,
-      coverArt,
+      audioUrl,
+      coverUrl,
       instagram,
       twitter
     );
