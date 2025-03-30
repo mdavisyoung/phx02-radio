@@ -11,6 +11,14 @@ const VALID_AUTH = `Basic ${toBase64(`${USERNAME}:${PASSWORD}`)}`;
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
+  // Get the pathname
+  const pathname = request.nextUrl.pathname;
+
+  // Only protect admin routes
+  if (!pathname.startsWith('/admin')) {
+    return NextResponse.next();
+  }
+
   const authHeader = request.headers.get('authorization');
 
   if (!authHeader) {
@@ -37,7 +45,11 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Only match /admin routes
+// Configure middleware to run on specific paths
 export const config = {
-  matcher: '/admin/:path*'
+  matcher: [
+    // Match all routes that start with /admin
+    '/admin',
+    '/admin/:path*',
+  ]
 }; 
