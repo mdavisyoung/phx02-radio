@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { SongMetadata } from '@/app/lib/metadata';
+import type { Song, SongMetadata } from '@/app/types/audio';
 import { useRouter } from 'next/navigation';
 
 type TabType = 'submissions' | 'approved';
 
 export default function AdminDashboard() {
-  const [songs, setSongs] = useState<Record<string, SongMetadata>>({});
+  const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('submissions');
@@ -16,11 +16,11 @@ export default function AdminDashboard() {
   const fetchSongs = async () => {
     try {
       console.log('Fetching songs...');
-      const response = await fetch('/api/admin/get-songs');
+      const response = await fetch('/api/songs');
       if (!response.ok) throw new Error('Failed to fetch songs');
       const data = await response.json();
       console.log('Received songs:', data);
-      setSongs(data);
+      setSongs(data.songs || []);
     } catch (err) {
       console.error('Error fetching songs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load songs');
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     fetch('/api/admin/logout', { method: 'POST' })
-      .then(() => router.push('/admin/login'))
+      .then(() => router.push('/'))
       .catch(console.error);
   };
 
@@ -93,10 +93,7 @@ export default function AdminDashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          songKey: songs[songKey].songKey,
-          imageKey: songs[songKey].imageKey,
-        }),
+        body: JSON.stringify({ songKey }),
       });
 
       if (!response.ok) throw new Error('Failed to delete song');
@@ -110,11 +107,11 @@ export default function AdminDashboard() {
   };
 
   // Filter songs based on active tab
-  const filteredSongs = Object.entries(songs).filter(([_, song]) => {
+  const filteredSongs = songs.filter((song) => {
     if (activeTab === 'submissions') {
-      return song.songKey.startsWith('submissions/');
+      return !song.metadata.approved;
     } else {
-      return song.songKey.startsWith('songs/');
+      return song.metadata.approved;
     }
   });
 
@@ -169,31 +166,31 @@ export default function AdminDashboard() {
       )}
 
       <div className="space-y-4">
-        {filteredSongs.map(([key, song]) => (
-          <div key={key} className="bg-zinc-900 rounded-xl p-6 border border-gray-800">
+        {filteredSongs.map((song) => (
+          <div key={song.key} className="bg-zinc-900 rounded-xl p-6 border border-gray-800">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-xl font-semibold">{song.songName}</h2>
-                <p className="text-gray-400">Artist: {song.artistName}</p>
-                <p className="text-gray-400">Instagram: {song.instagramHandle}</p>
+                <h2 className="text-xl font-semibold">{song.metadata.songName}</h2>
+                <p className="text-gray-400">Artist: {song.metadata.artistName}</p>
+                <p className="text-gray-400">Instagram: {song.metadata.instagramHandle}</p>
                 <p className="text-gray-400 text-sm mt-2">
-                  Location: {song.songKey}
+                  Location: {song.key}
                 </p>
                 <p className="text-gray-400 text-sm">
-                  Submitted: {new Date(song.submittedAt).toLocaleString()}
+                  Submitted: {new Date(song.metadata.submittedAt).toLocaleString()}
                 </p>
               </div>
               <div className="space-x-2">
                 {activeTab === 'submissions' && (
                   <button
-                    onClick={() => handleApprove(key)}
+                    onClick={() => handleApprove(song.key)}
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                   >
                     Approve
                   </button>
                 )}
                 <button
-                  onClick={() => handleDelete(key)}
+                  onClick={() => handleDelete(song.key)}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                 >
                   Delete
@@ -202,14 +199,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         ))}
-
-        {filteredSongs.length === 0 && (
-          <div className="text-center text-gray-400">
-            {activeTab === 'submissions' 
-              ? 'No pending submissions'
-              : 'No approved songs'}
-          </div>
-        )}
       </div>
     </div>
   );
