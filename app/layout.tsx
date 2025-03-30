@@ -20,7 +20,7 @@ export default function RootLayout({
           className="fixed inset-0 z-0 opacity-10"
           style={{
             backgroundImage: 'url(/images/phx02 main logo.jpg)',
-            backgroundSize: '200px 200px',
+            backgroundSize: 'auto',
             backgroundRepeat: 'repeat',
             filter: 'grayscale(100%)',
           }}
@@ -31,14 +31,16 @@ export default function RootLayout({
           <nav className="border-b border-gray-800">
             <div className="container mx-auto flex justify-between items-center px-4 py-2">
               <Link href="/" className="hover:opacity-80 transition-opacity">
-                <Image
-                  src="/images/phx02 main logo.jpg"
-                  alt="PHX02 Radio Logo"
-                  width={120}
-                  height={120}
-                  className="rounded-full"
-                  priority
-                />
+                <div className="w-[120px] h-[120px] relative">
+                  <Image
+                    src="/images/phx02 main logo.jpg"
+                    alt="PHX02 Radio Logo"
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    className="rounded-full"
+                    priority
+                  />
+                </div>
               </Link>
               <div className="space-x-6">
                 <Link 
