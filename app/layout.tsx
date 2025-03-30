@@ -20,9 +20,10 @@ export default function RootLayout({
           className="fixed inset-0 z-0 opacity-10"
           style={{
             backgroundImage: 'url(/images/phx02 main logo.jpg)',
-            backgroundSize: 'auto',
+            backgroundSize: '150px',
             backgroundRepeat: 'repeat',
             filter: 'grayscale(100%)',
+            transform: 'rotate(45deg)',
           }}
         />
         
@@ -36,6 +37,7 @@ export default function RootLayout({
                     src="/images/phx02 main logo.jpg"
                     alt="PHX02 Radio Logo"
                     fill
+                    sizes="120px"
                     style={{ objectFit: 'cover' }}
                     className="rounded-full"
                     priority
