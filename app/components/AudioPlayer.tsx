@@ -48,26 +48,17 @@ export default function AudioPlayer() {
     }
   }, [currentSong]);
 
+  const getDirectS3Url = (key: string) => {
+    return `https://phx02-radio-uploads.s3.us-east-2.amazonaws.com/${key}`;
+  };
+
   /**
    * Fetches a presigned URL for cover art from S3
    * @param imageKey - The S3 key for the cover art image
    */
   const getCoverArtUrl = async (imageKey: string) => {
     try {
-      const response = await fetch('/api/get-audio-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ songKey: imageKey }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get cover art URL');
-      }
-
-      const data = await response.json() as PresignedUrlResponse;
-      setCoverArtUrl(data.url);
+      setCoverArtUrl(getDirectS3Url(imageKey));
     } catch (error) {
       console.error('Error getting cover art URL:', error);
       setCoverArtUrl(null);
@@ -121,21 +112,7 @@ export default function AudioPlayer() {
     try {
       setError(null);
       setCurrentSong(song); // Set current song immediately
-      const response = await fetch('/api/get-audio-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ songKey: song.key }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to get audio URL');
-      }
-
-      const data = await response.json() as PresignedUrlResponse;
-      setAudioUrl(data.url);
+      setAudioUrl(getDirectS3Url(song.key));
       setIsPlaying(true);
     } catch (error) {
       console.error('Error getting audio URL:', error);
