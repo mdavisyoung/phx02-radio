@@ -20,7 +20,10 @@ export default function AdminDashboard() {
       if (!response.ok) throw new Error('Failed to fetch songs');
       const data = await response.json();
       console.log('Received songs:', data);
-      setSongs(data.songs || []);
+      
+      // Ensure we have an array of songs with valid metadata
+      const validSongs = (data.songs || []).filter((song: any) => song && song.metadata);
+      setSongs(validSongs);
     } catch (err) {
       console.error('Error fetching songs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load songs');
@@ -106,13 +109,10 @@ export default function AdminDashboard() {
     }
   };
 
-  // Filter songs based on active tab
+  // Filter songs based on active tab and ensure metadata exists
   const filteredSongs = songs.filter((song) => {
-    if (activeTab === 'submissions') {
-      return !song.metadata.approved;
-    } else {
-      return song.metadata.approved;
-    }
+    if (!song?.metadata?.approved) return activeTab === 'submissions';
+    return activeTab === 'approved';
   });
 
   if (loading) {
@@ -166,39 +166,45 @@ export default function AdminDashboard() {
       )}
 
       <div className="space-y-4">
-        {filteredSongs.map((song) => (
-          <div key={song.key} className="bg-zinc-900 rounded-xl p-6 border border-gray-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-semibold">{song.metadata.songName}</h2>
-                <p className="text-gray-400">Artist: {song.metadata.artistName}</p>
-                <p className="text-gray-400">Instagram: {song.metadata.instagramHandle}</p>
-                <p className="text-gray-400 text-sm mt-2">
-                  Location: {song.key}
-                </p>
-                <p className="text-gray-400 text-sm">
-                  Submitted: {new Date(song.metadata.submittedAt).toLocaleString()}
-                </p>
-              </div>
-              <div className="space-x-2">
-                {activeTab === 'submissions' && (
+        {filteredSongs.length > 0 ? (
+          filteredSongs.map((song) => (
+            <div key={song.key} className="bg-zinc-900 rounded-xl p-6 border border-gray-800">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold">{song.metadata?.songName || 'Untitled'}</h2>
+                  <p className="text-gray-400">Artist: {song.metadata?.artistName || 'Unknown'}</p>
+                  <p className="text-gray-400">Instagram: {song.metadata?.instagramHandle || 'N/A'}</p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Location: {song.key}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Submitted: {song.metadata?.submittedAt ? new Date(song.metadata.submittedAt).toLocaleString() : 'Unknown'}
+                  </p>
+                </div>
+                <div className="space-x-2">
+                  {activeTab === 'submissions' && (
+                    <button
+                      onClick={() => handleApprove(song.key)}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      Approve
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleApprove(song.key)}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    onClick={() => handleDelete(song.key)}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                   >
-                    Approve
+                    Delete
                   </button>
-                )}
-                <button
-                  onClick={() => handleDelete(song.key)}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Delete
-                </button>
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center text-gray-400">
+            {activeTab === 'submissions' ? 'No pending submissions' : 'No approved songs'}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
