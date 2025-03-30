@@ -13,12 +13,15 @@ const createS3Client = (): S3Client => {
         throw new S3ClientError('S3 client can only be created on the server side');
     }
 
+    const region = process.env.AWS_REGION || 'us-east-2';
+    const bucket = process.env.S3_BUCKET_NAME || 'phx02-radio-uploads';
+
     // Log environment status (without exposing values)
     console.log('[aws-config] Environment check:', {
         hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
         hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'us-east-2',
-        bucket: process.env.S3_BUCKET_NAME || 'phx02-radio-uploads'
+        region,
+        bucket
     });
 
     if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -27,11 +30,12 @@ const createS3Client = (): S3Client => {
     }
 
     const client = new S3Client({
-        region: process.env.AWS_REGION || 'us-east-2',
+        region,
         credentials: {
             accessKeyId: process.env.AWS_ACCESS_KEY_ID,
             secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
         },
+        endpoint: `https://${bucket}.s3.${region}.amazonaws.com`
     });
 
     console.log('[aws-config] S3 client created successfully');
