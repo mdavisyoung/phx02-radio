@@ -6,7 +6,7 @@ const toBase64 = (str: string) => Buffer.from(str).toString('base64');
 
 // Credentials
 const USERNAME = 'admin';
-const PASSWORD = 'vellipass';
+const PASSWORD = 'phx02pass';
 const VALID_AUTH = `Basic ${toBase64(`${USERNAME}:${PASSWORD}`)}`;
 
 // This function can be marked `async` if using `await` inside
@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
     return new NextResponse(null, {
       status: 401,
       headers: {
-        'WWW-Authenticate': 'Basic realm="Secure Area"',
+        'WWW-Authenticate': 'Basic realm="PHX02 Radio Admin"',
       },
     });
   }
@@ -33,7 +33,7 @@ export function middleware(request: NextRequest) {
     return new NextResponse(null, {
       status: 401,
       headers: {
-        'WWW-Authenticate': 'Basic realm="Secure Area"',
+        'WWW-Authenticate': 'Basic realm="PHX02 Radio Admin"',
       },
     });
   }
@@ -42,7 +42,7 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Configure which routes to protect
+// Configure which routes to protect - ONLY admin routes
 export const config = {
-  matcher: '/admin/:path*',
+  matcher: ['/admin/:path*']
 }; 
