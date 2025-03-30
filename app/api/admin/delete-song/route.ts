@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
-import { s3Client } from '@/app/lib/aws-config';
+import { getS3Client } from '@/app/lib/aws-config';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getMetadata, updateMetadata } from '@/app/lib/metadata';
 import type { SongMetadata } from '@/app/types/audio';
 
 export async function POST(request: Request) {
-    if (!s3Client) {
-        console.error('S3 client is not initialized');
-        return NextResponse.json({ error: 'S3 client is not initialized' }, { status: 500 });
-    }
-
     try {
         const { songKey } = await request.json();
 
@@ -37,6 +32,8 @@ export async function POST(request: Request) {
                 { status: 404 }
             );
         }
+
+        const s3Client = getS3Client();
 
         // Delete the file from S3
         const deleteCommand = new DeleteObjectCommand({
