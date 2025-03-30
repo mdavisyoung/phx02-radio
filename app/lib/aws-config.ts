@@ -34,8 +34,7 @@ const createS3Client = (): S3Client => {
         credentials: {
             accessKeyId: process.env.AWS_ACCESS_KEY_ID,
             secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-        endpoint: `https://${bucket}.s3.${region}.amazonaws.com`
+        }
     });
 
     console.log('[aws-config] S3 client created successfully');
