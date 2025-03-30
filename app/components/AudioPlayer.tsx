@@ -120,6 +120,7 @@ export default function AudioPlayer() {
   const playSong = async (song: Song) => {
     try {
       setError(null);
+      setCurrentSong(song); // Set current song immediately
       const response = await fetch('/api/get-audio-url', {
         method: 'POST',
         headers: {
@@ -135,11 +136,12 @@ export default function AudioPlayer() {
 
       const data = await response.json() as PresignedUrlResponse;
       setAudioUrl(data.url);
-      setCurrentSong(song);
       setIsPlaying(true);
     } catch (error) {
       console.error('Error getting audio URL:', error);
       setError(error instanceof Error ? error.message : 'Failed to play song');
+      setIsPlaying(false);
+      // Don't clear currentSong here - keep the UI state
     }
   };
 
@@ -164,14 +166,14 @@ export default function AudioPlayer() {
     );
   }
 
-  // Error state
-  if (error) {
-    return <div className="text-red-500 text-center p-4">Error: {error}</div>;
-  }
-
   // Main render
   return (
     <div className="bg-zinc-900 rounded-xl shadow-2xl max-w-2xl mx-auto p-6">
+      {error && (
+        <div className="text-red-500 text-center p-4 mb-4 bg-red-100/10 rounded">
+          Error: {error}
+        </div>
+      )}
       <div className="flex flex-col items-center space-y-4">
         {/* Cover Art */}
         <div className="relative w-48 h-48 rounded-lg overflow-hidden bg-zinc-800">
